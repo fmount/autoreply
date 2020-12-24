@@ -65,7 +65,8 @@ TODO: Description of the plugin and available options
 DEFAULT_SETTINGS = {
     'enabled': "off",
     'time': 2,
-    'msg': "is away"
+    'msg': "is away",
+    'mode': 'notice'
 }
 
 class AutoReplyConfig():
@@ -101,7 +102,7 @@ def get_nick(bufferp):
 def is_away(local_nick):
     pass
 
-def reply(now):
+def do_command(bufferp, now, prefix):
     '''
     This function implements the reply to the specified private buffer
     if timer is expired
@@ -110,7 +111,7 @@ def reply(now):
     '''
     last = w.buffer_get_string(bufferp, "localvar_btime")
     if last == "" or (DEFAULT_SETTINGS.get('time', 2) * 60 <= (int(now) - int(last))):
-        w.command()  # I can send the reply on the buffer
+        w.command(bufferp, "/" + DEFAULT_SETTINGS.mode + " " + prefix + " " + DEFAULT_SETTINGS.msg)  # I can send the reply on the buffer
         w.buffer_set_string(bufferp, "localvar_btime", str(int(time.time())))
     else:
         w.buffer_set_string(bufferp, "localvar_btime", str(int(time.time())))
@@ -140,7 +141,7 @@ def ar_catch_msg(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefi
     # check if local nick is away
     if is_away(mynick) and "on" in DEFAULT_SETTINGS.get('enabled', "off"):
         # TODO: I should be able to reply if timer is ok with that!
-        reply(time.time())
+        do_command(bufferp, time.time(), prefix)
 
 def ar_config_change():
     pass
@@ -152,7 +153,7 @@ if __name__ == "__main__" and IMPORT_OK:
     #config = AutoReplyConfig(DEFAULT_SETTINGS)
 
     for option, value in DEFAULT_SETTINGS.items():
-        if not w.config_is_set_plugin(option):
+        if not w.config_is_set_plugin(option) and option not in DEFAULT_SETTINGS.msg:
             w.config_set_plugin(option, value[0])
 
     # register commands and hooks
