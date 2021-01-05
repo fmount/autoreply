@@ -34,6 +34,7 @@ from prettytable import PrettyTable
 import time
 
 IMPORT_OK = True
+DEBUG = True
 
 try:
     import weechat as w
@@ -63,9 +64,9 @@ TODO: Description of the plugin and available options
 """
 
 DEFAULT_SETTINGS = {
-    'enabled': "off",
-    'time': 2,
-    'msg': "is away",
+    'enabled': "on",
+    'time': '2',
+    'msg': "is away!",
     'mode': 'notice'
 }
 
@@ -97,12 +98,11 @@ def get_nick(bufferp):
     '''
     server = w.buffer_get_string(bufferp, "name").split(".")[0]
     nick = w.info_get("irc_nick", server)
+    if DEBUG:
+        w.prnt("", "[DEBUG] - Current Nick: %s" % nick)
     return nick
 
-def is_away(local_nick):
-    pass
-
-def do_command(bufferp, now, prefix):
+def do_command(bufferp, now, prefix, msg):
     '''
     This function implements the reply to the specified private buffer
     if timer is expired
@@ -111,37 +111,44 @@ def do_command(bufferp, now, prefix):
     '''
     last = w.buffer_get_string(bufferp, "localvar_btime")
     if last == "" or (DEFAULT_SETTINGS.get('time', 2) * 60 <= (int(now) - int(last))):
-        w.command(bufferp, "/" + DEFAULT_SETTINGS.mode + " " + prefix + " " + DEFAULT_SETTINGS.msg)  # I can send the reply on the buffer
-        w.buffer_set_string(bufferp, "localvar_btime", str(int(time.time())))
+        if DEBUG:
+            w.prnt("", "[DEBUG] - Last time found is: %s" % last)
+            w.prnt("", "[DEBUG] - Sending text: %s" % msg)
+        w.command(bufferp, "/" + DEFAULT_SETTINGS.get('mode', 'notice') + " " + prefix + " " + DEFAULT_SETTINGS.get('msg', ''))  # I can send the reply on the buffer
+        w.buffer_set(bufferp, "localvar_btime", str(now))
     else:
-        w.buffer_set_string(bufferp, "localvar_btime", str(int(time.time())))
+        w.buffer_set(bufferp, "localvar_btime", str(now))
     return w.WEECHAT_RC_OK
-
 
 
 def ar_catch_msg(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message):
 
     # IRC PMs are caught by notify_private, but we need notify_message to
     # capture hilights in channels.
-    #if 'notify_private' in tagsn and not ishilight:
-    #    return weechat.WEECHAT_RC_OK
+    if 'notify_private' not in tagsn:  # and not ishilight:
+        return w.WEECHAT_RC_OK
     '''
     this function should react on receiving private messages, sending a reply using the
     established method (/notice vs /me vs other approaches) when the user is away but is
     still connected to the network using the weechat instance.
     '''
 
-    # are the user away?
+    # is the user away ?
     away = w.buffer_get_string(bufferp, "localvar_away")
-    if (away == "" and w.config_get_plugin("only_away") == "on"):
+    if (away == "" or w.config_get_plugin("only_away") == "on"):
+        if DEBUG:
+            w.prnt("", "[DEBUG] - Can't send the message while user (nick) is not AWAY")
         return w.WEECHAT_RC_OK
 
     # get local nick
     mynick = get_nick(bufferp)
+
+    DEFAULT_SETTINGS['msg'] = str(away)
+
     # check if local nick is away
-    if is_away(mynick) and "on" in DEFAULT_SETTINGS.get('enabled', "off"):
-        # TODO: I should be able to reply if timer is ok with that!
-        do_command(bufferp, time.time(), prefix)
+    if "on" in DEFAULT_SETTINGS.get('enabled', "off"):
+        do_command(bufferp, time.time(), prefix, DEFAULT_SETTINGS.get('msg', ''))
+    return w.WEECHAT_RC_OK
 
 def ar_config_change():
     pass
@@ -153,10 +160,10 @@ if __name__ == "__main__" and IMPORT_OK:
     #config = AutoReplyConfig(DEFAULT_SETTINGS)
 
     for option, value in DEFAULT_SETTINGS.items():
-        if not w.config_is_set_plugin(option) and option not in DEFAULT_SETTINGS.msg:
-            w.config_set_plugin(option, value[0])
+        if not w.config_is_set_plugin(option) and option not in DEFAULT_SETTINGS.get('msg', ''):
+            w.config_set_plugin(option, value)
 
     # register commands and hooks
-    w.hook_print("", "", 1, "ar_catch_msg", "")  # this hook helps catching private msgs
+    w.hook_print("", "", "", 1, "ar_catch_msg", "")  # this hook helps catching private msgs
     w.hook_config("plugins.var.python." + SCRIPT_NAME + ".*", "ar_config_change", "")  # be notified about config changes
     w.hook_command(SCRIPT_COMMAND, SCRIPT_DESC, "[list] | [on|off|toggle] | [time] | [text]", SCRIPT_HELPER, "", "auto_reply_cmd", "")
