@@ -109,15 +109,21 @@ def do_command(bufferp, now, prefix, msg):
     params:
       now: it comes from time.time() and represent the immediate present
     '''
-    last = w.buffer_get_string(bufferp, "localvar_btime")
-    if last == "" or (DEFAULT_SETTINGS.get('time', 2) * 60 <= (int(now) - int(last))):
+    before = w.buffer_get_string(bufferp, "localvar_timer")
+    if ((len(str(before)) == 0) or ((int(DEFAULT_SETTINGS.get('time', 2)) * 60) <= (int(now) - int(str(before))))):
         if DEBUG:
-            w.prnt("", "[DEBUG] - Last time found is: %s" % last)
+            w.prnt("", "[DEBUG] - Last time found is: %s" % before)
             w.prnt("", "[DEBUG] - Sending text: %s" % msg)
-        w.command(bufferp, "/" + DEFAULT_SETTINGS.get('mode', 'notice') + " " + prefix + " " + DEFAULT_SETTINGS.get('msg', ''))  # I can send the reply on the buffer
-        w.buffer_set(bufferp, "localvar_btime", str(now))
+            w.prnt("", "[DEBUG] - Setting time: %s" % str(int(now)))
+        #w.command(bufferp, "/" + DEFAULT_SETTINGS.get('mode', 'notice') + " " + prefix + " " + DEFAULT_SETTINGS.get('msg', ''))  # I can send the reply on the buffer
+        w.command(bufferp, "/me" + " " + DEFAULT_SETTINGS.get('msg', ''))
+        w.buffer_set(bufferp, "localvar_set_timer", str(int(now)))
+        # w.prnt("", "[DEBUG] - Retrieved time: %s" % str(w.buffer_get_string(bufferp, "localvar_timer")))
     else:
-        w.buffer_set(bufferp, "localvar_btime", str(now))
+        #w.buffer_set(bufferp, "localvar_set_timer", str(int(now)))
+        if DEBUG:
+            w.prnt("", "[DEBUG] - No need to reply again (delta is %d)" % (int(now) - int(str(before))))
+            #w.prnt("", "[DEBUG] - Setting new time: %d" % (int(now)))
     return w.WEECHAT_RC_OK
 
 
@@ -141,13 +147,14 @@ def ar_catch_msg(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefi
         return w.WEECHAT_RC_OK
 
     # get local nick
-    mynick = get_nick(bufferp)
+    # mynick = get_nick(bufferp)
 
     DEFAULT_SETTINGS['msg'] = str(away)
 
     # check if local nick is away
     if "on" in DEFAULT_SETTINGS.get('enabled', "off"):
-        do_command(bufferp, time.time(), prefix, DEFAULT_SETTINGS.get('msg', ''))
+        now = int(time.time())
+        do_command(bufferp, now, prefix, DEFAULT_SETTINGS.get('msg', ''))
     return w.WEECHAT_RC_OK
 
 def ar_config_change():
@@ -158,7 +165,6 @@ if __name__ == "__main__" and IMPORT_OK:
     w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", "")
 
     #config = AutoReplyConfig(DEFAULT_SETTINGS)
-
     for option, value in DEFAULT_SETTINGS.items():
         if not w.config_is_set_plugin(option) and option not in DEFAULT_SETTINGS.get('msg', ''):
             w.config_set_plugin(option, value)
