@@ -28,6 +28,16 @@
 # Changelog:
 # 0.1:
 #
+# TODO (features):
+#   - Configuration:
+#     - config change w/ a simple hook
+#     - provide the config entity in a class
+#   - debug on stdout || file via logger
+#   - a better way to build the command (aka: improve the "mode" config)
+#     - /me
+#     - /notice
+#   - print the current configuration (via separated buffer?)
+#   - improve the description of thew code and the provided helper(s)
 
 from __future__ import print_function
 from prettytable import PrettyTable
@@ -87,9 +97,6 @@ class AutoReplyConfig():
 
 def reload_config():
     ##config.reload()
-    pass
-
-def auto_reply_cmd():
     pass
 
 def get_nick(bufferp):
