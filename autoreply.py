@@ -30,17 +30,12 @@
 #
 # TODO (features):
 #   - Configuration:
-#     - config change w/ a simple hook
-#     - provide the config entity in a class
 #   - debug on stdout || file via logger
 #   - a better way to build the command (aka: improve the "mode" config)
 #     - /me
 #     - /notice
-#   - print the current configuration (via separated buffer?)
 #   - improve the description of thew code and the provided helper(s)
 
-from __future__ import print_function
-from prettytable import PrettyTable
 import time
 
 IMPORT_OK = True
@@ -73,31 +68,15 @@ TODO: Description of the plugin and available options
 - msg:     The text that should be sent to the buffer
 """
 
+DEFAULT_SERVERS_FILTER = ['bitlbee', 'telegram']
+
 DEFAULT_SETTINGS = {
     'enabled': "on",
-    'time': '2',
+    'time': '1',
     'msg': "is away!",
-    'mode': 'notice'
+    'mode': 'notice',
+    'server': DEFAULT_SERVERS_FILTER,
 }
-
-class AutoReplyConfig():
-    ''' The autoreply configuration. '''
-
-    def __init__(self, *args):
-        self.enabled = "off"
-        self.time = 2
-        self.msg = ""
-
-    def print_config(self):
-        x = PrettyTable()
-        x.field_names = ["AutoReply Status", "Repeat Time", "Message"]
-        x.addRow([self.enabled, self.time, self.msg])
-        # print should happen within the weechat context
-        w.prnt("", x)
-
-def reload_config():
-    ##config.reload()
-    pass
 
 def get_nick(bufferp):
     '''
@@ -106,8 +85,8 @@ def get_nick(bufferp):
     server = w.buffer_get_string(bufferp, "name").split(".")[0]
     nick = w.info_get("irc_nick", server)
     if DEBUG:
-        w.prnt("", "[DEBUG] - Current Nick: %s" % nick)
-    return nick
+        w.prnt("", "[DEBUG] - The current Nick is %s on Server %s" % (nick, server))
+    return nick, server
 
 def do_command(bufferp, now, prefix, msg):
     '''
@@ -117,22 +96,51 @@ def do_command(bufferp, now, prefix, msg):
       now: it comes from time.time() and represent the immediate present
     '''
     before = w.buffer_get_string(bufferp, "localvar_timer")
-    if ((len(str(before)) == 0) or ((int(DEFAULT_SETTINGS.get('time', 2)) * 60) <= (int(now) - int(str(before))))):
+    wait_for = int(DEFAULT_SETTINGS.get('time', 2))
+    if w.config_get_plugin('time') != "":
+        wait_for = w.config_get_plugin('time')
+    if ((len(str(before)) == 0) or ((int(wait_for) * 60) <= (int(now) - int(str(before))))):
         if DEBUG:
+            w.prnt("", "[DEBUG] - WAIT FOR %s" % w.config_get_plugin('time'))
             w.prnt("", "[DEBUG] - Last time found is: %s" % before)
             w.prnt("", "[DEBUG] - Sending text: %s" % msg)
             w.prnt("", "[DEBUG] - Setting time: %s" % str(int(now)))
-        #w.command(bufferp, "/" + DEFAULT_SETTINGS.get('mode', 'notice') + " " + prefix + " " + DEFAULT_SETTINGS.get('msg', ''))  # I can send the reply on the buffer
+            w.prnt("", "[DEBUG] - SERVERS: %s" % str(get_config_as_list((w.config_get_plugin('server')))))
+        # w.command(bufferp, "/" + DEFAULT_SETTINGS.get('mode', 'notice') + " " + prefix + " " + DEFAULT_SETTINGS.get('msg', ''))  # I can send the reply on the buffer
         w.command(bufferp, "/me" + " " + DEFAULT_SETTINGS.get('msg', ''))
         w.buffer_set(bufferp, "localvar_set_timer", str(int(now)))
         # w.prnt("", "[DEBUG] - Retrieved time: %s" % str(w.buffer_get_string(bufferp, "localvar_timer")))
     else:
-        #w.buffer_set(bufferp, "localvar_set_timer", str(int(now)))
+        # w.buffer_set(bufferp, "localvar_set_timer", str(int(now)))
         if DEBUG:
             w.prnt("", "[DEBUG] - No need to reply again (delta is %d)" % (int(now) - int(str(before))))
-            #w.prnt("", "[DEBUG] - Setting new time: %d" % (int(now)))
+            # w.prnt("", "[DEBUG] - Setting new time: %d" % (int(now)))
     return w.WEECHAT_RC_OK
 
+def filter_server(s):
+    '''
+    True if the server should be filtered according to the
+    defined SERVERS_FILTER list.
+    '''
+    slist = get_config_as_list(w.config_get_plugin('server'))
+    if len(slist) == 0:
+        slist = DEFAULT_SERVERS_FILTER  # using default plugin settings
+    return (True if s in slist else False)
+
+def config_as_str(value):
+    """Convert config defaults to strings for weechat."""
+    if isinstance(value, list):
+        s = ''
+        s = ','.join([v for v in value])
+        return s
+    else:
+        return str(value)
+
+def get_config_as_list(value):
+    """Convert comma separated config strings to list"""
+    if isinstance(value, list):
+        return value
+    return value.split(',')
 
 def ar_catch_msg(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message):
 
@@ -154,29 +162,28 @@ def ar_catch_msg(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefi
         return w.WEECHAT_RC_OK
 
     # get local nick
-    # mynick = get_nick(bufferp)
+    mynick, curr_serv = get_nick(bufferp)
 
-    DEFAULT_SETTINGS['msg'] = str(away)
+    # update both the msg plugin setting and the DEFAULT_MSG
+    if len(away) != "":
+        DEFAULT_SETTINGS['msg'] = str(away)
+        w.config_set_plugin('msg', str(away))
 
     # check if local nick is away
-    if "on" in DEFAULT_SETTINGS.get('enabled', "off"):
+    if "on" in w.config_get_plugin('enabled') and filter_server(curr_serv):
         now = int(time.time())
         do_command(bufferp, now, prefix, DEFAULT_SETTINGS.get('msg', ''))
     return w.WEECHAT_RC_OK
-
-def ar_config_change():
-    pass
 
 
 if __name__ == "__main__" and IMPORT_OK:
     w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", "")
 
-    #config = AutoReplyConfig(DEFAULT_SETTINGS)
     for option, value in DEFAULT_SETTINGS.items():
         if not w.config_is_set_plugin(option) and option not in DEFAULT_SETTINGS.get('msg', ''):
-            w.config_set_plugin(option, value)
+            w.config_set_plugin(option, config_as_str(value))
 
     # register commands and hooks
     w.hook_print("", "", "", 1, "ar_catch_msg", "")  # this hook helps catching private msgs
-    w.hook_config("plugins.var.python." + SCRIPT_NAME + ".*", "ar_config_change", "")  # be notified about config changes
-    w.hook_command(SCRIPT_COMMAND, SCRIPT_DESC, "[list] | [on|off|toggle] | [time] | [text]", SCRIPT_HELPER, "", "auto_reply_cmd", "")
+    # w.hook_config("plugins.var.python." + SCRIPT_NAME + ".*", "ar_config_change", "")  # be notified about config changes
+    w.hook_command(SCRIPT_COMMAND, SCRIPT_DESC, "[list|filter] | [on|off|toggle] | [time] | [text] | [server_name]", SCRIPT_HELPER, "", "auto_reply_cmd", "")
