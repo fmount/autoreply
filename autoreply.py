@@ -1,8 +1,7 @@
 #!/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2013-2017 Maarten de Vries <maarten@de-vri.es>
-#
+# Inspired (in its structure) by lots of weechat plugins.
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
@@ -16,30 +15,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
-#
 # Autosort automatically keeps your buffers sorted and grouped by server.
-# You can define your own sorting rules. See /help autosort for more details.
+# You can define your own sorting rules. See /help autosort for more
+# details.
 #
 # https://github.com/fmount/autoreply
 #
-
 #
 # Changelog:
 # 0.1:
-#
-# TODO (features):
-#   - Configuration:
-#   - debug on stdout || file via logger
-#   - a better way to build the command (aka: improve the "mode" config)
-#     - /me
-#     - /notice
-#   - improve the description of thew code and the provided helper(s)
+#  - DEBUG mode is not a config parameter anymore
+#  - cmd is now built before setting running w.command
+#  - The server filter is ready
 
 import time
 
 IMPORT_OK = True
-DEBUG = True
+DEBUG = False
 
 try:
     import weechat as w
@@ -49,32 +41,40 @@ except ImportError:
     IMPORT_OK = False
 
 """
-TODO: A description of the plugin
+The autoreply plugin is built to make your life easier when
+weechat is still in foreground but /away is set.
+It makes sense to build an automated reply (with a custom
+message) that works and is sent when the autoreply plugin
+is activated.
+This is inspired to a similar irssi plugin.
 """
 
 SCRIPT_NAME = "autoreply"
 SCRIPT_AUTHOR = "Francesco Pantano <fmount@inventati.org>"
 SCRIPT_VERSION = "0.1"
-SCRIPT_LICENSE = "GPL3"
+SCRIPT_LICENSE = "BSD"
 SCRIPT_DESC = "Simple autoreply on private channels when away"
 SCRIPT_REPO = "https://github.com/fmount/autoreply"
 SCRIPT_COMMAND = "autoreply"
 SCRIPT_DESC = "A simple autoreply on private channels when away"
 SCRIPT_HELPER = """
-TODO: Description of the plugin and available options
+A simple autoreply plugin that replies on private channels when
+the nick is away.
+It can also be enabled only for a subset of servers and a filter
+list can be built through the related config option.
 
 - enabled: on || off
 - time:    int() representing minutes
 - msg:     The text that should be sent to the buffer
 """
 
-DEFAULT_SERVERS_FILTER = ['bitlbee', 'telegram']
+DEFAULT_SERVERS_FILTER = ['bitlbee']
 
 DEFAULT_SETTINGS = {
     'enabled': "on",
     'time': '1',
     'msg': "is away!",
-    'mode': 'notice',
+    'mode': 'me',
     'server': DEFAULT_SERVERS_FILTER,
 }
 
@@ -91,9 +91,12 @@ def get_nick(bufferp):
 def do_command(bufferp, now, prefix, msg):
     '''
     This function implements the reply to the specified private buffer
-    if timer is expired
+    when time is expired
     params:
-      now: it comes from time.time() and represent the immediate present
+      now: from time.time() and represent the immediate present
+      prefix: still not used, can be useful for future features
+      msg: the default autoreply message
+
     '''
     before = w.buffer_get_string(bufferp, "localvar_timer")
     wait_for = int(DEFAULT_SETTINGS.get('time', 2))
@@ -106,15 +109,12 @@ def do_command(bufferp, now, prefix, msg):
             w.prnt("", "[DEBUG] - Sending text: %s" % msg)
             w.prnt("", "[DEBUG] - Setting time: %s" % str(int(now)))
             w.prnt("", "[DEBUG] - SERVERS: %s" % str(get_config_as_list((w.config_get_plugin('server')))))
-        # w.command(bufferp, "/" + DEFAULT_SETTINGS.get('mode', 'notice') + " " + prefix + " " + DEFAULT_SETTINGS.get('msg', ''))  # I can send the reply on the buffer
-        w.command(bufferp, "/me" + " " + DEFAULT_SETTINGS.get('msg', ''))
+        cmd = '/{} {}'.format(w.config_get_plugin('mode'), msg)
+        w.command(bufferp, cmd)
         w.buffer_set(bufferp, "localvar_set_timer", str(int(now)))
-        # w.prnt("", "[DEBUG] - Retrieved time: %s" % str(w.buffer_get_string(bufferp, "localvar_timer")))
     else:
-        # w.buffer_set(bufferp, "localvar_set_timer", str(int(now)))
         if DEBUG:
             w.prnt("", "[DEBUG] - No need to reply again (delta is %d)" % (int(now) - int(str(before))))
-            # w.prnt("", "[DEBUG] - Setting new time: %d" % (int(now)))
     return w.WEECHAT_RC_OK
 
 def filter_server(s):
@@ -185,5 +185,4 @@ if __name__ == "__main__" and IMPORT_OK:
 
     # register commands and hooks
     w.hook_print("", "", "", 1, "ar_catch_msg", "")  # this hook helps catching private msgs
-    # w.hook_config("plugins.var.python." + SCRIPT_NAME + ".*", "ar_config_change", "")  # be notified about config changes
     w.hook_command(SCRIPT_COMMAND, SCRIPT_DESC, "[list|filter] | [on|off|toggle] | [time] | [text] | [server_name]", SCRIPT_HELPER, "", "auto_reply_cmd", "")
