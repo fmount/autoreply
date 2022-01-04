@@ -31,7 +31,7 @@
 import time
 
 IMPORT_OK = True
-DEBUG = False
+DEBUG = True
 
 try:
     import weechat as w
@@ -117,6 +117,13 @@ def do_command(bufferp, now, prefix, msg):
             w.prnt("", "[DEBUG] - No need to reply again (delta is %d)" % (int(now) - int(str(before))))
     return w.WEECHAT_RC_OK
 
+def allowed_mode(m):
+    if m is None or m == "":
+        return False
+    # note: only /me and /notice allowed for now
+    amode = ['me', 'notice']
+    return (True if m in amode else False)
+
 def filter_server(s):
     '''
     True if the server should be filtered according to the
@@ -170,7 +177,9 @@ def ar_catch_msg(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefi
         w.config_set_plugin('msg', str(away))
 
     # check if local nick is away
-    if "on" in w.config_get_plugin('enabled') and filter_server(curr_serv):
+    if "on" in w.config_get_plugin('enabled') \
+            and filter_server(curr_serv) \
+            and allowed_mode(w.config_get_plugin('mode')):
         now = int(time.time())
         do_command(bufferp, now, prefix, DEFAULT_SETTINGS.get('msg', ''))
     return w.WEECHAT_RC_OK
