@@ -1,10 +1,11 @@
 # Autoreply weechat Plugin
 
-Autoreply is a weechat script to automatically react on a private buffer whenever a message is received.
-The goal is to keep weechat in foreground and set an automatic reply without closing the client.
-Auto-replies are sent according to the *time* config option, and avoids to reply with the same message
-if a bunch of messages are received.
-
+Autoreply is a weechat script to automatically react on a private buffer whenever
+a message is received.
+The goal is to keep weechat in foreground and set an automatic reply without
+closing the client.
+Auto-replies are sent according to the *time* config option, and avoids to reply
+with the same message if a bunch of messages are received.
 
 ## Options
 
@@ -29,7 +30,7 @@ The default server array is bitlbee:
 
 but the options can be changed using the weechat /set command.
 
-Here's a brief description of the config options.
+Here's a brief description of the available options.
 
 | Option | Description |
 |---|---|
@@ -42,5 +43,6 @@ Here's a brief description of the config options.
 
 ### Note:
 
-* At the moment the only (allowed) [modes are /me and /notice](https://github.com/fmount/autoreply/blob/master/autoreply.py*)
-* If the server list is an empty array, the plugin rely on the [DEFAULT_SERVER_LIST](), represented by 'bitlbee' (and is hardcoded)
+* At the moment the only (allowed) [modes are /me and /notice](https://github.com/fmount/autoreply/blob/master/autoreply.py#L123-L124)
+* If the server list is an empty array, the plugin rely on the [DEFAULT_SERVER_LIST](https://github.com/fmount/autoreply/blob/master/autoreply.py#L71),
+represented by 'bitlbee' (and is hardcoded)
