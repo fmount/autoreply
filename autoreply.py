@@ -31,7 +31,7 @@
 import time
 
 IMPORT_OK = True
-DEBUG = True
+DEBUG = False
 
 try:
     import weechat as w
@@ -78,6 +78,7 @@ DEFAULT_SETTINGS = {
     'server': DEFAULT_SERVERS_FILTER,
 }
 
+
 def get_nick(bufferp):
     '''
     Returns the nick on the current server, retrieved via bufferp query
@@ -85,8 +86,10 @@ def get_nick(bufferp):
     server = w.buffer_get_string(bufferp, "name").split(".")[0]
     nick = w.info_get("irc_nick", server)
     if DEBUG:
-        w.prnt("", "[DEBUG] - The current Nick is %s on Server %s" % (nick, server))
+        w.prnt("", "[DEBUG] - The current Nick is %s \
+               on Server %s" % (nick, server))
     return nick, server
+
 
 def do_command(bufferp, now, prefix, msg):
     '''
@@ -100,29 +103,43 @@ def do_command(bufferp, now, prefix, msg):
     '''
     before = w.buffer_get_string(bufferp, "localvar_timer")
     wait_for = int(DEFAULT_SETTINGS.get('time', 2))
+
     if w.config_get_plugin('time') != "":
         wait_for = w.config_get_plugin('time')
-    if ((len(str(before)) == 0) or ((int(wait_for) * 60) <= (int(now) - int(str(before))))):
+
+    if (
+        (len(str(before)) == 0)
+        or ((int(wait_for) * 60) <= (int(now) - int(str(before)))) # noqa W503
+    ):
         if DEBUG:
-            w.prnt("", "[DEBUG] - WAIT FOR %s" % w.config_get_plugin('time'))
+            w.prnt("", "[DEBUG] - Wait for %s" % w.config_get_plugin('time'))
             w.prnt("", "[DEBUG] - Last time found is: %s" % before)
             w.prnt("", "[DEBUG] - Sending text: %s" % msg)
             w.prnt("", "[DEBUG] - Setting time: %s" % str(int(now)))
-            w.prnt("", "[DEBUG] - SERVERS: %s" % str(get_config_as_list((w.config_get_plugin('server')))))
+            w.prnt("", "[DEBUG] - Servers: \
+                    %s" % str(get_config_as_list(
+                             (w.config_get_plugin('server')))))
         cmd = '/{} {}'.format(w.config_get_plugin('mode'), msg)
         w.command(bufferp, cmd)
         w.buffer_set(bufferp, "localvar_set_timer", str(int(now)))
     else:
         if DEBUG:
-            w.prnt("", "[DEBUG] - No need to reply again (delta is %d)" % (int(now) - int(str(before))))
+            w.prnt("", "[DEBUG] - No need to reply again \
+                   (delta is %d)" % (int(now) - int(str(before))))
     return w.WEECHAT_RC_OK
 
+
 def allowed_mode(m):
+    '''
+    True if the selected mode is present in the allowed list,
+    False otherwise.
+    '''
     if m is None or m == "":
         return False
     # note: only /me and /notice allowed for now
     amode = ['me', 'notice']
     return (True if m in amode else False)
+
 
 def filter_server(s):
     '''
@@ -134,6 +151,7 @@ def filter_server(s):
         slist = DEFAULT_SERVERS_FILTER  # using default plugin settings
     return (True if s in slist else False)
 
+
 def config_as_str(value):
     """Convert config defaults to strings for weechat."""
     if isinstance(value, list):
@@ -143,29 +161,34 @@ def config_as_str(value):
     else:
         return str(value)
 
+
 def get_config_as_list(value):
     """Convert comma separated config strings to list"""
     if isinstance(value, list):
         return value
     return value.split(',')
 
-def ar_catch_msg(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefix, message):
+
+def ar_catch_msg(data, bufferp, uber_empty, tagsn,
+                 isdisplayed, ishilight, prefix, message):
 
     # IRC PMs are caught by notify_private, but we need notify_message to
     # capture hilights in channels.
     if 'notify_private' not in tagsn:  # and not ishilight:
         return w.WEECHAT_RC_OK
     '''
-    this function should react on receiving private messages, sending a reply using the
-    established method (/notice vs /me vs other approaches) when the user is away but is
-    still connected to the network using the weechat instance.
+    this function should react on receiving private messages, sending a reply
+    using the established method (/notice vs /me vs other approaches) when the
+    user is away but is still connected to the network using the weechat
+    instance.
     '''
 
     # is the user away ?
     away = w.buffer_get_string(bufferp, "localvar_away")
     if (away == "" or w.config_get_plugin("only_away") == "on"):
         if DEBUG:
-            w.prnt("", "[DEBUG] - Can't send the message while user (nick) is not AWAY")
+            w.prnt("", "[DEBUG] - Can't send the message while \
+                user (nick) is not AWAY")
         return w.WEECHAT_RC_OK
 
     # get local nick
@@ -186,12 +209,14 @@ def ar_catch_msg(data, bufferp, uber_empty, tagsn, isdisplayed, ishilight, prefi
 
 
 if __name__ == "__main__" and IMPORT_OK:
-    w.register(SCRIPT_NAME, SCRIPT_AUTHOR, SCRIPT_VERSION, SCRIPT_LICENSE, SCRIPT_DESC, "", "")
+    w.register(SCRIPT_NAME, SCRIPT_AUTHOR,
+               SCRIPT_VERSION, SCRIPT_LICENSE,
+               SCRIPT_DESC, "", "")
 
     for option, value in DEFAULT_SETTINGS.items():
-        if not w.config_is_set_plugin(option) and option not in DEFAULT_SETTINGS.get('msg', ''):
+        if not w.config_is_set_plugin(option) \
+           and option not in DEFAULT_SETTINGS.get('msg', ''):
             w.config_set_plugin(option, config_as_str(value))
 
     # register commands and hooks
-    w.hook_print("", "", "", 1, "ar_catch_msg", "")  # this hook helps catching private msgs
-    w.hook_command(SCRIPT_COMMAND, SCRIPT_DESC, "[list|filter] | [on|off|toggle] | [time] | [text] | [server_name]", SCRIPT_HELPER, "", "auto_reply_cmd", "")
+    w.hook_print("", "", "", 1, "ar_catch_msg", "")  # catch private msgs
