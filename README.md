@@ -1,5 +1,4 @@
-Autoreply weechat Plugin
----
+# Autoreply weechat Plugin
 
 Autoreply is a weechat script to automatically react on a private buffer whenever a message is received.
 The goal is to keep weechat in foreground and set an automatic reply without closing the client.
@@ -11,6 +10,7 @@ if a bunch of messages are received.
 
 Config options are created according to the following structure:
 
+```
   SETTINGS = {
       'enabled': "on",
       'time': '1',
@@ -18,16 +18,18 @@ Config options are created according to the following structure:
       'mode': 'me',
       'server': SERVERS_FILTER,
   }
+```
 
 where SERVERS_FILTER is a server array where we want to to make the script working.
 The default server array is bitlbee:
 
-
+```
   SERVERS_FILTER = ['bitlbee']
+```
 
 but the options can be changed using the weechat /set command.
 
-blabla
+Here's a brief description of the config options.
 
 | Option | Description |
 |---|---|
@@ -38,7 +40,7 @@ blabla
 |**plugins.var.python.autoreply.server** | a comma separated list of servers where the script can be enabled |
 
 
-**Note**:
+### Note:
 
 * At the moment the only (allowed) [modes are /me and /notice](https://github.com/fmount/autoreply/blob/master/autoreply.py*)
 * If the server list is an empty array, the plugin rely on the [DEFAULT_SERVER_LIST](), represented by 'bitlbee' (and is hardcoded)
