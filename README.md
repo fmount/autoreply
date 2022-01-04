@@ -21,7 +21,7 @@ Config options are created according to the following structure:
   }
 ```
 
-where SERVERS_FILTER is a server array where we want to to make the script working.
+where **SERVERS_FILTER** is a server array where we want to to make the script working.
 The default server array is bitlbee:
 
 ```
@@ -45,4 +45,4 @@ Here's a brief description of the available options.
 
 * At the moment the only (allowed) [modes are /me and /notice](https://github.com/fmount/autoreply/blob/master/autoreply.py#L123-L124)
 * If the server list is an empty array, the plugin rely on the [DEFAULT_SERVER_LIST](https://github.com/fmount/autoreply/blob/master/autoreply.py#L71),
-represented by 'bitlbee' (and is hardcoded)
+represented by 'bitlbee' (which is hardcoded)
